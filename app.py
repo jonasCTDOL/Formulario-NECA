@@ -1,34 +1,37 @@
-
 import streamlit as st
 
-def get_next_question(current_state, answers):
+# Centraliza todas as perguntas em um dicionário para fácil manutenção
+QUESTIONS = {
+    "reason": "Qual o motivo principal da sua busca por análise psicológica?",
+    "anxiety_symptoms": "Descreva seus sintomas de ansiedade e quando eles costumam ocorrer.",
+    "feelings": "Há mais alguma coisa que você gostaria de compartilhar sobre seus sentimentos atuais?",
+    "anxiety_triggers": "Quais situações ou pensamentos costumam desencadear sua ansiedade?",
+    "mood_scale": "Como você avalia seu humor geral na última semana em uma escala de 1 a 10?",
+}
+
+def get_next_question_key(current_state, answers):
     """
-    Determina a próxima pergunta com base no estado atual e nas respostas.
-    Esta é uma lógica simplificada para demonstração.
-    Em uma aplicação real, isso seria mais complexo.
+    Determina a CHAVE da próxima pergunta com base no estado atual e nas respostas.
+    A lógica do fluxo da entrevista fica concentrada aqui.
     """
     if current_state == "start":
-        return "Qual o motivo principal da sua busca por análise psicológica?", "reason"
+        return "reason"
     elif current_state == "reason":
-        # Exemplo de lógica simples: se o motivo for "ansiedade", faça perguntas sobre ansiedade.
-        # Caso contrário, faça uma pergunta geral.
         if "ansiedade" in answers.get("reason", "").lower():
-            return "Descreva seus sintomas de ansiedade e quando eles costumam ocorrer.", "anxiety_symptoms"
+            return "anxiety_symptoms"
         else:
-            return "Há mais alguma coisa que você gostaria de compartilhar sobre seus sentimentos atuais?", "feelings"
+            return "feelings"
     elif current_state == "anxiety_symptoms":
-        return "Quais situações ou pensamentos costumam desencadear sua ansiedade?", "anxiety_triggers"
+        return "anxiety_triggers"
     elif current_state == "anxiety_triggers":
-        return "Como você avalia seu humor geral na última semana em uma escala de 1 a 10?", "mood_scale"
+        return "mood_scale"
     elif current_state == "feelings":
-         return "Como você avalia seu humor geral na última semana em uma escala de 1 a 10?", "mood_scale"
-    # Adicione mais estados e lógica condicional aqui
+         return "mood_scale"
     else:
-        return None, "end" # Indica que não há mais perguntas
-
+        return None # Indica o fim da entrevista
 
 def app():
-    st.title("Formulário de Análise Psicológica")
+    st.title("Entrevista Psicológica Interativa")
 
     # Inicializa o estado da sessão
     if 'current_state' not in st.session_state:
@@ -36,32 +39,50 @@ def app():
         st.session_state.answers = {}
 
     # Obtém a próxima pergunta com base no estado atual
-    question_text, question_key = get_next_question(
+    next_question_key = get_next_question_key(
         st.session_state.current_state,
         st.session_state.answers
     )
 
     # Se houver uma próxima pergunta, exibe-a
-    if question_text:
+    if next_question_key:
+        question_text = QUESTIONS[next_question_key]
         st.write(question_text)
 
-        # Campo de entrada para a resposta. A chave do widget é única para cada pergunta.
-        answer = st.text_area("Sua resposta:", key=f"answer_{question_key}")
+        # Usa um widget diferente para a escala Likert (escala de humor)
+        if next_question_key == "mood_scale":
+            answer = st.slider(
+                "Selecione um valor de 1 (muito baixo) a 10 (muito alto)",
+                min_value=1,
+                max_value=10,
+                value=5, # Valor inicial
+                key=f"answer_{next_question_key}"
+            )
+        else:
+            answer = st.text_area("Sua resposta:", key=f"answer_{next_question_key}", label_visibility="collapsed")
 
         # Botão para submeter a resposta e avançar
         if st.button("Próxima Pergunta"):
             if answer:
                 # Salva a resposta e atualiza o estado para o da pergunta que acabamos de responder
-                st.session_state.answers[question_key] = answer
-                st.session_state.current_state = question_key
+                st.session_state.answers[next_question_key] = answer
+                st.session_state.current_state = next_question_key
                 # Reroda o script para mostrar a próxima pergunta ou a tela final
                 st.rerun()
             else:
                 st.warning("Por favor, insira sua resposta antes de continuar.")
     else:
-        st.success("Análise concluída. Obrigado por suas respostas.")
-        st.write("Respostas Coletadas:")
-        st.json(st.session_state.answers) # Exibe as respostas coletadas
+        # Tela de conclusão: exibe o resultado da entrevista
+        st.success("Entrevista concluída. Obrigado por suas respostas.")
+        st.header("Resumo da Análise")
+
+        for key, answer in st.session_state.answers.items():
+            # Busca o texto da pergunta no dicionário
+            question_text = QUESTIONS.get(key, key.replace('_', ' ').capitalize())
+            st.subheader(question_text)
+            # Formata a resposta para melhor visualização
+            st.markdown(f"> _{answer}_")
+            st.write("---")
 
 if __name__ == "__main__":
     app()
